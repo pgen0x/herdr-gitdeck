@@ -1,0 +1,71 @@
+name: release
+
+# On a v* tag: build each platform's binary and attach it to the GitHub release,
+# where herdr/install.sh downloads it during `herdr plugin install`.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  # A tag creates no release object by itself; make a draft for the assets first.
+  # The body is the tag's CHANGELOG.md section.
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tag must match both manifest versions
+        run: |
+          for f in herdr-plugin.toml Cargo.toml; do
+            version="$(grep -m1 '^version' "$f" | sed -E 's/.*"([^"]+)".*/\1/')"
+            test "v$version" = "$GITHUB_REF_NAME" || { echo "$f has $version"; exit 1; }
+          done
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          changelog: CHANGELOG.md
+          title: herdr-gitdeck $version
+          draft: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  binaries:
+    needs: create-release
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          - { target: x86_64-apple-darwin, os: macos-latest }
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@v7
+      # Produces herdr-gitdeck-<target>.tar.gz plus herdr-gitdeck-<target>.sha256,
+      # the exact names install.sh fetches.
+      - uses: taiki-e/upload-rust-binary-action@v1
+        id: upload
+        with:
+          bin: herdr-gitdeck
+          target: ${{ matrix.target }}
+          archive: $bin-$target
+          tar: unix
+          checksum: sha256
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.upload.outputs.tar }}
+
+  # Publish only once every asset is attached, so a failed target never ships a
+  # release that installs a 404.
+  publish:
+    needs: binaries
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh release edit "$GITHUB_REF_NAME" --draft=false --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
