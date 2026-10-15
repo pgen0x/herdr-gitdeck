@@ -1,0 +1,34 @@
+id = "pgen0x.gitdeck"
+name = "gitdeck"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+platforms = ["linux", "macos"]
+description = "Review, stage and commit diffs across every repo in a folder; send line comments to the agent."
+
+[[build]]
+platforms = ["linux", "macos"]
+command = ["bash", "herdr/install.sh"]
+
+[[panes]]
+id = "pane"
+title = "gitdeck"
+placement = "split"
+command = ["bin/herdr-gitdeck"]
+
+[[actions]]
+id = "toggle"
+title = "gitdeck: toggle pane"
+contexts = ["pane", "workspace"]
+command = ["bin/herdr-gitdeck", "--action", "toggle"]
+
+[[actions]]
+id = "open"
+title = "gitdeck: open pane"
+contexts = ["pane", "workspace"]
+command = ["bin/herdr-gitdeck", "--action", "open"]
+
+[[actions]]
+id = "close"
+title = "gitdeck: close pane"
+contexts = ["pane", "workspace"]
+command = ["bin/herdr-gitdeck", "--action", "close"]

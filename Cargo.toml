@@ -1,0 +1,23 @@
+[package]
+name = "herdr-gitdeck"
+version = "0.1.0"
+edition = "2021"
+description = "herdr plugin: review, stage and commit diffs across every git repo in a folder, and send line comments to your coding agent"
+license = "MIT"
+repository = "https://github.com/pgen0x/herdr-gitdeck"
+readme = "README.md"
+keywords = ["herdr", "git", "tui", "diff", "ratatui"]
+categories = ["command-line-utilities", "development-tools"]
+publish = false
+
+[profile.release]
+strip = true
+lto = "thin"
+
+[dependencies]
+anyhow = "1.0.104"
+ratatui = "0.30"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+syntect = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy", "dump-load"] }
+two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
