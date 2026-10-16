@@ -1,6 +1,6 @@
 [package]
 name = "herdr-gitdeck"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "herdr plugin: review, stage and commit diffs across every git repo in a folder, and send line comments to your coding agent"
 license = "MIT"

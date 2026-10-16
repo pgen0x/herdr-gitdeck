@@ -1,6 +1,6 @@
 id = "pgen0x.gitdeck"
 name = "gitdeck"
-version = "0.1.1"
+version = "0.2.0"
 min_herdr_version = "0.9.3"
 platforms = ["linux", "macos"]
 description = "Review, stage and commit diffs across every repo in a folder; send line comments to the agent."

@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-16
+
 ### Added
 
 - Mouse support: click a panel to focus it and select the row under the pointer; the
@@ -36,6 +38,7 @@ All notable changes to this project are documented here. The format follows
   checksum-verified on install, with a source build as fallback.
 - Responsive layout that stacks the panels in narrow panes.
 
-[Unreleased]: https://github.com/pgen0x/herdr-gitdeck/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/pgen0x/herdr-gitdeck/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/pgen0x/herdr-gitdeck/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/pgen0x/herdr-gitdeck/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/pgen0x/herdr-gitdeck/releases/tag/v0.1.0
