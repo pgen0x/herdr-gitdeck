@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-16
+
+### Fixed
+
+- gitdeck panes come back after a herdr server restart instead of turning into plain
+  shells. The pane now saves its label in the session, and a startup hook swaps each
+  restored shell labelled `gitdeck` for a new gitdeck pane in the same place.
+
 ## [0.1.0] - 2026-10-15
 
 ### Added
@@ -23,5 +31,6 @@ All notable changes to this project are documented here. The format follows
   checksum-verified on install, with a source build as fallback.
 - Responsive layout that stacks the panels in narrow panes.
 
-[Unreleased]: https://github.com/pgen0x/herdr-gitdeck/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/pgen0x/herdr-gitdeck/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/pgen0x/herdr-gitdeck/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/pgen0x/herdr-gitdeck/releases/tag/v0.1.0

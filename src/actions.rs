@@ -1,4 +1,4 @@
-//! Plugin actions (`--action toggle|open|close`). herdr runs them with the plugin
+//! Plugin actions (`--action toggle|open|close|restore`). herdr runs them with the plugin
 //! root as cwd and the focused workspace in `HERDR_PLUGIN_CONTEXT_JSON`.
 
 use crate::herdr;
@@ -10,6 +10,9 @@ const PLUGIN_ID: &str = "pgen0x.gitdeck";
 const PANE_LABEL: &str = "gitdeck";
 
 pub fn run(action: &str) -> Result<()> {
+    if action == "restore" {
+        return restore();
+    }
     let raw = std::env::var("HERDR_PLUGIN_CONTEXT_JSON").context("no plugin context")?;
     let ctx: Value = serde_json::from_str(&raw)?;
     let field = |k: &str| ctx[k].as_str().unwrap_or_default().to_string();
@@ -31,6 +34,54 @@ pub fn run(action: &str) -> Result<()> {
 
 fn close(panes: &[herdr::Pane]) -> Result<()> {
     for p in panes {
+        herdr::exec(&["pane", "close", &p.pane_id])?;
+    }
+    Ok(())
+}
+
+/// Name our pane so the label is saved in herdr's session. herdr does not save the label of
+/// a plugin pane by itself, and after a restart the pane is otherwise an unknown shell.
+pub fn stamp_label() {
+    if let Ok(pane) = std::env::var("HERDR_PANE_ID") {
+        // Best effort: an unnamed pane still works, it just is not restored.
+        let _ = herdr::exec(&["pane", "rename", &pane, PANE_LABEL]);
+    }
+}
+
+/// Startup hook. A server restart brings panes back as plain shells in their old cwd, with
+/// their labels. Swap each shell still labelled as ours for a real gitdeck pane: split it,
+/// then close it, so the new pane takes over exactly its area.
+fn restore() -> Result<()> {
+    for p in herdr::all_panes()? {
+        if p.label.as_deref() != Some(PANE_LABEL) {
+            continue;
+        }
+        // Live handoff keeps processes: a pane still running gitdeck needs nothing.
+        let running = herdr::foreground_programs(&p.pane_id)?;
+        if running.iter().any(|a| a.ends_with("herdr-gitdeck")) {
+            continue;
+        }
+        let Some(cwd) = p.foreground_cwd.as_deref() else {
+            continue;
+        };
+        herdr::exec(&[
+            "plugin",
+            "pane",
+            "open",
+            "--plugin",
+            PLUGIN_ID,
+            "--entrypoint",
+            "pane",
+            "--placement",
+            "split",
+            "--direction",
+            "right",
+            "--target-pane",
+            &p.pane_id,
+            "--cwd",
+            cwd,
+            "--no-focus",
+        ])?;
         herdr::exec(&["pane", "close", &p.pane_id])?;
     }
     Ok(())

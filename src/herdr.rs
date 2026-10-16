@@ -65,6 +65,23 @@ pub fn panes(workspace: &str) -> Result<Vec<Pane>> {
     Ok(serde_json::from_value(res["panes"].take())?)
 }
 
+/// Panes of every workspace.
+pub fn all_panes() -> Result<Vec<Pane>> {
+    let mut res = cli(&["pane", "list"])?;
+    Ok(serde_json::from_value(res["panes"].take())?)
+}
+
+/// argv[0] of each foreground process in `pane`.
+pub fn foreground_programs(pane: &str) -> Result<Vec<String>> {
+    let res = cli(&["pane", "process-info", "--pane", pane])?;
+    Ok(res["process_info"]["foreground_processes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|p| p["argv"][0].as_str().map(String::from))
+        .collect())
+}
+
 /// Pick the agent to send a review to: same workspace, preferring one working in `repo`.
 pub fn pick_agent(repo: &Path) -> Result<Agent> {
     let workspace = std::env::var("HERDR_WORKSPACE_ID").context("not running inside herdr")?;

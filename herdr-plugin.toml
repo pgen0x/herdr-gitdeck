@@ -1,6 +1,6 @@
 id = "pgen0x.gitdeck"
 name = "gitdeck"
-version = "0.1.0"
+version = "0.1.1"
 min_herdr_version = "0.9.3"
 platforms = ["linux", "macos"]
 description = "Review, stage and commit diffs across every repo in a folder; send line comments to the agent."
@@ -8,6 +8,10 @@ description = "Review, stage and commit diffs across every repo in a folder; sen
 [[build]]
 platforms = ["linux", "macos"]
 command = ["bash", "herdr/install.sh"]
+
+# A server restart brings panes back as plain shells; turn ours back into gitdeck.
+[[startup]]
+command = ["bin/herdr-gitdeck", "--action", "restore"]
 
 [[panes]]
 id = "pane"

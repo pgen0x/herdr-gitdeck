@@ -2,7 +2,7 @@
 //! and send line comments to the agent working on them.
 //!
 //! `herdr-gitdeck [DIR]`        run the TUI (DIR defaults to the cwd)
-//! `herdr-gitdeck --action ID`  plugin action: toggle | open | close
+//! `herdr-gitdeck --action ID`  plugin action: toggle | open | close | restore
 
 mod actions;
 mod app;
@@ -32,6 +32,7 @@ fn main() -> Result<()> {
         .canonicalize()
         .with_context(|| format!("no such folder: {}", root.display()))?;
 
+    actions::stamp_label();
     highlight::warm_up();
     let paths = repos::discover(&root);
     let scanner = scan::Scanner::start(paths.clone());
