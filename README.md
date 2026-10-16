@@ -57,6 +57,8 @@ finds every repo below it and lists the ones with changes first.
 - **Review comments to your agent**: comment on a line or a file, then send all comments for
   the repo to the agent working in it as one paste. Nothing is submitted for you; you read the
   paste and press Enter in the agent pane.
+- **Mouse**: click a panel to focus it and pick the row under the pointer; the wheel
+  moves the selection in the panel under the pointer. Shift+drag still selects text.
 - **Responsive layout**: three panes side by side when wide, stacked when narrow, and the
   focused panel gets the space.
 - **Safe with agents running**: read-only git calls take no `index.lock`, so a background

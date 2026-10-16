@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Mouse support: click a panel to focus it and select the row under the pointer; the
+  wheel moves the selection in the panel under the pointer.
+
 ## [0.1.1] - 2026-10-16
 
 ### Fixed

@@ -40,9 +40,24 @@ fn main() -> Result<()> {
 
     // `init` switches to the alternate screen and restores it on panic too.
     let mut terminal = ratatui::init();
+    // Click and wheel reports only (1000) in SGR encoding (1006): no motion events,
+    // so moving the pointer doesn't cost redraws. Shift+drag still selects text.
+    mouse_reporting(true);
     let result = run(&mut terminal, &mut app);
+    mouse_reporting(false);
     ratatui::restore();
     result
+}
+
+fn mouse_reporting(on: bool) {
+    use std::io::Write;
+    let seq: &[u8] = if on {
+        b"\x1b[?1000h\x1b[?1006h"
+    } else {
+        b"\x1b[?1006l\x1b[?1000l"
+    };
+    let mut out = std::io::stdout();
+    let _ = out.write_all(seq).and_then(|_| out.flush());
 }
 
 fn run(terminal: &mut ratatui::DefaultTerminal, app: &mut app::App) -> Result<()> {
@@ -64,13 +79,21 @@ fn run(terminal: &mut ratatui::DefaultTerminal, app: &mut app::App) -> Result<()
         let (mut keys, mut busy) = (0, Duration::ZERO);
         if event::poll(Duration::from_millis(150))? {
             loop {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
-                        let k = Instant::now();
+                let k = Instant::now();
+                let handled = match event::read()? {
+                    Event::Key(key) if key.kind == KeyEventKind::Press => {
                         app.on_key(key);
-                        busy += k.elapsed();
-                        keys += 1;
+                        true
                     }
+                    Event::Mouse(m) => {
+                        app.on_mouse(m);
+                        true
+                    }
+                    _ => false,
+                };
+                if handled {
+                    busy += k.elapsed();
+                    keys += 1;
                 }
                 if app.quit || !event::poll(Duration::ZERO)? {
                     break;

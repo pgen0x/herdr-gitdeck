@@ -37,9 +37,17 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let [repos, files] =
         Layout::vertical([Constraint::Percentage(45), Constraint::Fill(1)]).areas(left);
 
-    draw_repos(f, app, repos);
-    draw_files(f, app, files);
+    let repos_offset = draw_repos(f, app, repos);
+    let (files_offset, file_rows) = draw_files(f, app, files);
     draw_diff(f, app, right);
+    app.hits = crate::app::Hitmap {
+        repos,
+        repos_offset,
+        files,
+        files_offset,
+        file_rows,
+        diff: right,
+    };
     draw_status(f, app, status);
     draw_popup(f, app);
 }
@@ -72,7 +80,8 @@ fn selection(focused: bool) -> Style {
 
 // ---- repos ---------------------------------------------------------------------------
 
-fn draw_repos(f: &mut Frame, app: &App, area: Rect) {
+/// Returns the list's scroll offset.
+fn draw_repos(f: &mut Frame, app: &App, area: Rect) -> usize {
     let vis = app.visible_repos();
     let dirty = vis
         .iter()
@@ -131,6 +140,7 @@ fn draw_repos(f: &mut Frame, app: &App, area: Rect) {
         };
         f.render_widget(Paragraph::new(msg.fg(DIM)), inner(area));
     }
+    state.offset()
 }
 
 fn counts(staged: usize, unstaged: usize, untracked: usize) -> Vec<Span<'static>> {
@@ -166,7 +176,8 @@ fn area_label(area: Area) -> (&'static str, Color) {
     }
 }
 
-fn draw_files(f: &mut Frame, app: &App, area: Rect) {
+/// Returns the list's scroll offset and the file index of each list row.
+fn draw_files(f: &mut Frame, app: &App, area: Rect) -> (usize, Vec<Option<usize>>) {
     let repo = app.current_repo();
     let title = Line::from(vec![
         " files ".bold(),
@@ -177,6 +188,7 @@ fn draw_files(f: &mut Frame, app: &App, area: Rect) {
     let files = app.files();
     // Section headers are interleaved, so the list index of a file is shifted.
     let mut items = Vec::new();
+    let mut rows = Vec::new();
     let mut selected = None;
     let mut last_area = None;
     for (i, file) in files.iter().enumerate() {
@@ -187,21 +199,20 @@ fn draw_files(f: &mut Frame, app: &App, area: Rect) {
                 label.fg(color).bold(),
                 format!(" {n}").fg(DIM),
             ])));
+            rows.push(None);
             last_area = Some(file.area);
         }
         if i == app.file_sel {
             selected = Some(items.len());
         }
         items.push(ListItem::new(file_line(app, file)));
+        rows.push(Some(i));
     }
     let list = List::new(items)
         .block(panel(title, app.focus == Focus::Files))
         .highlight_style(selection(app.focus == Focus::Files));
-    f.render_stateful_widget(
-        list,
-        area,
-        &mut ListState::default().with_selected(selected),
-    );
+    let mut state = ListState::default().with_selected(selected);
+    f.render_stateful_widget(list, area, &mut state);
     if let Some(Some(Err(e))) = repo.map(|r| &r.status) {
         f.render_widget(
             Paragraph::new(e.as_str().fg(DEL)).wrap(Wrap { trim: true }),
@@ -210,6 +221,7 @@ fn draw_files(f: &mut Frame, app: &App, area: Rect) {
     } else if files.is_empty() && repo.is_some() {
         f.render_widget(Paragraph::new("working tree clean".fg(DIM)), inner(area));
     }
+    (state.offset(), rows)
 }
 
 fn file_line(app: &App, file: &FileEntry) -> Line<'static> {

@@ -4,7 +4,10 @@ use crate::diff::{self, FileDiff, Row};
 use crate::git::{self, Apply, Area, FileEntry, RepoStatus};
 use crate::{herdr, highlight, scan};
 use anyhow::{bail, Context, Result};
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::crossterm::event::{
+    KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
+use ratatui::layout::{Position, Rect};
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender};
 
@@ -63,6 +66,33 @@ pub struct Comment {
     pub body: String,
 }
 
+/// Where the last frame drew each panel, so mouse clicks map back to rows.
+#[derive(Default)]
+pub struct Hitmap {
+    pub repos: Rect,
+    pub repos_offset: usize,
+    pub files: Rect,
+    pub files_offset: usize,
+    /// File index per files-list row; `None` for section headers.
+    pub file_rows: Vec<Option<usize>>,
+    pub diff: Rect,
+}
+
+impl Hitmap {
+    fn area(&self, panel: Focus) -> Rect {
+        match panel {
+            Focus::Repos => self.repos,
+            Focus::Files => self.files,
+            Focus::Diff => self.diff,
+        }
+    }
+}
+
+/// Row inside a bordered panel under screen line `y`, if `y` is not on a border.
+fn row_at(area: Rect, y: u16) -> Option<usize> {
+    (y > area.y && y + 1 < area.bottom()).then(|| (y - area.y - 1) as usize)
+}
+
 /// A highlighted diff and the raw text it was made from.
 type Highlighted = (String, FileDiff);
 
@@ -85,6 +115,7 @@ pub struct App {
     /// Repo the open commit prompt will commit to.
     pub commit_repo: Option<PathBuf>,
     pub quit: bool,
+    pub hits: Hitmap,
     scanner: scan::Scanner,
     /// Highlighted diffs coming back from worker threads, keyed by their raw text.
     highlighted: (Sender<Highlighted>, Receiver<Highlighted>),
@@ -127,6 +158,7 @@ impl App {
             comments: Vec::new(),
             commit_repo: None,
             quit: false,
+            hits: Hitmap::default(),
             scanner,
             highlighted: mpsc::channel(),
         }
@@ -314,6 +346,65 @@ impl App {
                     self.message = format!("cancelled: {prompt}");
                 }
             }
+        }
+    }
+
+    /// Left click focuses a panel and selects the row under it; the wheel moves the
+    /// selection of the panel under the pointer. Ignored while a prompt is open.
+    pub fn on_mouse(&mut self, m: MouseEvent) {
+        if !matches!(self.mode, Mode::Normal) {
+            return;
+        }
+        let pos = Position::new(m.column, m.row);
+        let Some(panel) = [Focus::Repos, Focus::Files, Focus::Diff]
+            .into_iter()
+            .find(|&p| self.hits.area(p).contains(pos))
+        else {
+            return;
+        };
+        match m.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                self.focus = panel;
+                if let Some(row) = row_at(self.hits.area(panel), m.row) {
+                    self.click_row(panel, row);
+                }
+            }
+            MouseEventKind::ScrollDown => self.scroll_panel(panel, 1),
+            MouseEventKind::ScrollUp => self.scroll_panel(panel, -1),
+            _ => {}
+        }
+    }
+
+    fn click_row(&mut self, panel: Focus, row: usize) {
+        match panel {
+            Focus::Repos => {
+                let i = self.hits.repos_offset + row;
+                if i < self.visible_repos().len() {
+                    self.select_repo(i);
+                }
+            }
+            Focus::Files => {
+                let hit = self.hits.file_rows.get(self.hits.files_offset + row);
+                if let Some(&Some(i)) = hit {
+                    self.select_file(i);
+                }
+            }
+            Focus::Diff => {
+                let i = self.scroll + row;
+                if i < self.rows.len() {
+                    self.cursor = i;
+                }
+            }
+        }
+    }
+
+    fn scroll_panel(&mut self, panel: Focus, delta: isize) {
+        match panel {
+            Focus::Repos => {
+                self.select_repo(step(self.repo_sel, delta, self.visible_repos().len()))
+            }
+            Focus::Files => self.select_file(step(self.file_sel, delta, self.files().len())),
+            Focus::Diff => self.cursor = step(self.cursor, delta * 3, self.rows.len()),
         }
     }
 
@@ -697,6 +788,15 @@ mod tests {
             format_review(std::path::Path::new("/r"), &[c]),
             "Review comments on /r:\n\nsrc/a.rs:12\n  > let x = 1;\n  rename x\n  please\n"
         );
+    }
+
+    #[test]
+    fn row_at_skips_borders() {
+        let area = Rect::new(0, 5, 10, 4); // border rows 5 and 8, content 6..=7
+        assert_eq!(row_at(area, 5), None);
+        assert_eq!(row_at(area, 6), Some(0));
+        assert_eq!(row_at(area, 7), Some(1));
+        assert_eq!(row_at(area, 8), None);
     }
 
     #[test]
